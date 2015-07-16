@@ -1,8 +1,10 @@
+var debug = require('debug')('index');
 var fs = require('fs');
 var nconf = require('nconf');
 var Docker = require('dockerode');
 var DockerEvents = require('docker-events');
 var express = require('express');
+var uuid = require('uuid');
 
 var app = express();
 
@@ -18,6 +20,7 @@ var docker = new Docker({
 
 // TODO falcon: this will need to be cleaned up
 function buildImage(git, cb) {
+  debug('Building image from %s', git)
   docker.buildImage('', {remote: git, q: true}, function (err, response) {
     if (err) return cb(err);
 
@@ -36,6 +39,9 @@ function buildImage(git, cb) {
           }
         }
       }
+
+      debug('Built image for %s %s', git, imageId);
+      // TODO falcon: consider fetching the full docker identifier...
       cb(null, imageId);
     });
   });
@@ -43,16 +49,20 @@ function buildImage(git, cb) {
 
 var containerRefuse = {};
 
-function runImage(image, cb) {
+function runImage(imageId, cb) {
   // TODO falcon: cmd must be here for some reason...
   // TODO falcon: err handling;
-  docker.createContainer({Image: image, Cmd: ['npm', 'test']}, function (err, container) {
+  debug('Building container for %s', imageId);
+  docker.createContainer({Image: imageId, Cmd: ['npm', 'test']}, function (err, container) {
     containerRefuse[container.id] = true;
     container.start(function (err) {
-      console.log('started a container', container.id, err);
+      debug('Starting container %s', container.id);
+      cb(err, container.id);
     });
   });
 }
+
+var jobs = {};
 
 app.post('/api/v0/verify', function(req, res, next) {
   var git = req.query.git;
@@ -61,12 +71,30 @@ app.post('/api/v0/verify', function(req, res, next) {
   buildImage(git, function(err, imageId) {
     if (err) return res.sendStatus(500);
 
-    // accept the request as soon as possible...
-    res.sendStatus(202);
-
     // fire off a container
-    runImage(imageId);
+    runImage(imageId, function(err, containerId) {
+      var job = jobs[containerId] = {
+        id: uuid.v1(),
+        url: '/api/v0/job/' + containerId,
+        imageId: imageId,
+        containerId: containerId,
+        submitted: Date.now(),
+        state: 'RUNNING'
+      }
+
+      res.status(202).json(job);
+    });
   });
+});
+
+app.get('/api/v0/job/:id', function(req, res, next) {
+  var id = req.params.id;
+  var job = jobs[req.params.id];
+  if (job) {
+    res.json(job);
+  } else {
+    res.sendStatus(404);
+  }
 });
 
 var emitter = new DockerEvents({
@@ -79,16 +107,36 @@ emitter.start();
 // containerRefuse object
 emitter.on('die', function(message) {
   if (message.id && containerRefuse[message.id]) {
+    debug('Container finished executing %s', message.id);
     var container = docker.getContainer(message.id);
     container.logs({stdout: true}, function(err, data) {
       if (err) return console.log(err);
-      data.pipe(process.stdout);
-      container.remove(function(err) {
-        console.log('removed container', err);
+
+      debug('Processing container logs %s', container.id);
+      processContainerLogs(data, function(err, log) {
+        var job = jobs[container.id];
+        job.result = log;
+        job.state = 'FINISHED';
+        container.remove(function(err) {
+          debug('Removing container %s', container.id);
+        });
       });
     });
   }
 });
+
+function processContainerLogs(data, cb) {
+  // TODO falcon: just reading into a string for demo purposes...
+  var log = '';
+  data.on('data', function(chunk) {
+    log += chunk.toString();
+  });
+
+  data.on('end', function() {
+    cb(null, log);
+  });
+}
+
 
 var port = nconf.get('port');
 app.listen(port, function() {

@@ -9,9 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "debug": "^2.2.0",
     "docker-events": "0.0.2",
     "dockerode": "^2.2.2",
     "express": "^4.13.1",
-    "nconf": "^0.7.1"
+    "nconf": "^0.7.1",
+    "uuid": "^2.0.1"
   }
 }
