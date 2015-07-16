@@ -1,0 +1,10 @@
+{
+  "port": 8080,
+  "docker": {
+    "host": "192.168.59.103",
+    "port": "2376",
+    "ca": "~/.boot2docker/certs/boot2docker-vm/ca.pem",
+    "key": "~/.boot2docker/certs/boot2docker-vm/key.pem",
+    "cert": "~/.boot2docker/certs/boot2docker-vm/cert.pem"
+  }
+}
