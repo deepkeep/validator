@@ -18,7 +18,6 @@ var docker = new Docker({
   ca: fs.readFileSync(nconf.get('docker:ca'))
 });
 
-// TODO falcon: this will need to be cleaned up
 function buildImage(git, cb) {
   debug('Building image from %s', git)
   docker.buildImage('', {remote: git, q: true}, function (err, response) {
@@ -50,14 +49,24 @@ function buildImage(git, cb) {
 var containerRefuse = {};
 
 function runImage(imageId, cb) {
-  // TODO falcon: cmd must be here for some reason...
   // TODO falcon: err handling;
   debug('Building container for %s', imageId);
-  docker.createContainer({Image: imageId, Cmd: ['npm', 'test']}, function (err, container) {
+  docker.createContainer({Image: imageId}, function (err, container) {
     containerRefuse[container.id] = true;
     container.start(function (err) {
       debug('Starting container %s', container.id);
       cb(err, container.id);
+    });
+  });
+}
+
+function extinguishJob(job, cb) {
+  var container = docker.getContainer(job.containerId);
+  container.remove(function(err) {
+    debug('Removing container %s %s', job.containerId, err);
+    var image = docker.getImage(job.imageId);
+    image.remove(function(err) {
+      debug('Removing image %s %s', job.imageId, err);
     });
   });
 }
@@ -117,9 +126,8 @@ emitter.on('die', function(message) {
         var job = jobs[container.id];
         job.result = log;
         job.state = 'FINISHED';
-        container.remove(function(err) {
-          debug('Removing container %s', container.id);
-        });
+
+        extinguishJob(job);
       });
     });
   }
