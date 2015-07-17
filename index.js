@@ -89,7 +89,7 @@ app.post('/api/v0/dummyverify', function(req, res, next) {
         score: Math.random()
       }
     }, function(err, res) {
-      console.log('Dummy callback post done', err, res);
+      console.log('Dummy callback post done', err, res.statusCode);
     });
   }, 2*1000);
 });
