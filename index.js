@@ -50,8 +50,9 @@ var containerRefuse = {};
 
 function runImage(imageId, cb) {
   // TODO falcon: err handling;
+  // TODO falcon: lots and lots of options here https://docs.docker.com/reference/api/docker_remote_api_v1.19/#create-a-container
   debug('Building container for %s', imageId);
-  docker.createContainer({Image: imageId}, function (err, container) {
+  docker.createContainer({Image: imageId, NetworkDisabled: true}, function (err, container) {
     containerRefuse[container.id] = true;
     container.start(function (err) {
       debug('Starting container %s', container.id);
