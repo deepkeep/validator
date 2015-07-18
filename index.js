@@ -5,6 +5,7 @@ var Docker = require('dockerode');
 var DockerEvents = require('docker-events');
 var express = require('express');
 var uuid = require('uuid');
+var request = require('request');
 var streamToArray = require('stream-to-array');
 
 var app = express();
@@ -96,6 +97,26 @@ function containerIdToJobId(containerId, cb) {
 }
 
 var jobs = {};
+
+app.use(function requestLogger(req, res, next) {
+  console.log(req.method + ' ' + req.url);
+  next();
+});
+
+app.post('/api/v0/dummyverify', function(req, res, next) {
+  res.json({ state: 'RUNNING' });
+  setTimeout(function() {
+    request({
+      uri: req.query.callback,
+      method: 'POST',
+      json: {
+        score: Math.random()
+      }
+    }, function(err, res) {
+      console.log('Dummy callback post done', err, res.statusCode);
+    });
+  }, 2*1000);
+});
 
 app.post('/api/v0/verify', function(req, res, next) {
   var git = req.query.git;
