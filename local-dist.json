@@ -1,5 +1,6 @@
 {
   "port": 8080,
+  "jobdb": "./jobdb",
   "docker": {
     "host": "192.168.59.103",
     "port": "2376",
