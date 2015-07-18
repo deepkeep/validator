@@ -54,6 +54,7 @@ app.post('/api/v0/verify', function(req, res, next) {
     url: '/api/v0/job/' + jobId,
     state: 'SUBMITTED',
     submitted: Date.now(),
+    imageUrl: git
   };
 
   jobs.put(jobId, job, function(err) {
