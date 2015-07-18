@@ -44,9 +44,12 @@ app.post('/api/v0/dummyverify', function(req, res, next) {
   }, 2*1000);
 });
 
+// verify needs a verifier, and a project.
 app.post('/api/v0/verify', function(req, res, next) {
-  var git = req.query.git;
-  if (!git) return res.sendStatus(400);
+  var verifier = req.query.verifier;
+  var project = req.query.project;
+
+  if (!verifier || !project) return res.sendStatus(400);
 
   var jobId = uuid.v1();
   var job = {
@@ -54,7 +57,8 @@ app.post('/api/v0/verify', function(req, res, next) {
     url: '/api/v0/job/' + jobId,
     state: 'SUBMITTED',
     submitted: Date.now(),
-    imageUrl: git
+    verifier: verifier,
+    project: project
   };
 
   jobs.put(jobId, job, function(err) {
