@@ -12,13 +12,18 @@ var app = express();
 
 nconf.env().file('local.json');
 
-var docker = new Docker({
-  host: nconf.get('docker:host'),
-  port: nconf.get('docker:port'),
-  key: fs.readFileSync(nconf.get('docker:key')),
-  cert: fs.readFileSync(nconf.get('docker:cert')),
-  ca: fs.readFileSync(nconf.get('docker:ca'))
-});
+var docker;
+if (nconf.get('docker:socketPath')) {
+  docker = new Docker({ socketPath: nconf.get('docker:socketPath') });
+} else {
+  docker = new Docker({
+    host: nconf.get('docker:host'),
+    port: nconf.get('docker:port'),
+    key: fs.readFileSync(nconf.get('docker:key')),
+    cert: fs.readFileSync(nconf.get('docker:cert')),
+    ca: fs.readFileSync(nconf.get('docker:ca'))
+  });
+}
 
 var jobs = level(nconf.get('jobdb'), {
   createIfMissing: true,
