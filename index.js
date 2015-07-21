@@ -74,13 +74,14 @@ app.post('/api/v0/verify', function(req, res, next) {
         jobs.put(jobId, job, function(err) {
           if (err) debug('Failed to update job state %s', jobId);
         });
+        return;
       }
 
       docker.buildImage(verifier, jobId, function(err, imageId) {
         var containerOpts = {
           Image: imageId,
           NetworkDisabled: true,
-          //Binds: [packagePath + ':/project/package.zip:ro'],
+          Binds: [packagePath + ':/project/package.zip:ro'],
           name: jobId
         }
         docker.runImage(containerOpts, function(err, containerId) {
