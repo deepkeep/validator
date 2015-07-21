@@ -6,6 +6,7 @@ var level = require('level');
 var express = require('express');
 var uuid = require('uuid');
 var request = require('request');
+var fetcher = require('./lib/fetcher');
 
 var app = express();
 
@@ -65,13 +66,30 @@ app.post('/api/v0/verify', function(req, res, next) {
     if (err) return res.statusCode(500);
     // response asap.
     res.status(202).json(job);
-    docker.buildImage(git, jobId, function(err, imageId) {
-      docker.runImage(imageId, jobId, function(err, containerId) {
-        job.imageId = imageId;
-        job.containerId = containerId;
-        job.state = 'RUNNING';
+
+    fetcher.fetch(project, function(err, packagePath) {
+      if (err) {
+        job.state = 'FAILED';
+        job.finished = Date.now();
         jobs.put(jobId, job, function(err) {
           if (err) debug('Failed to update job state %s', jobId);
+        });
+      }
+
+      docker.buildImage(verifier, jobId, function(err, imageId) {
+        var containerOpts = {
+          Image: imageId,
+          NetworkDisabled: true,
+          //Binds: [packagePath + ':/project/package.zip:ro'],
+          name: jobId
+        }
+        docker.runImage(containerOpts, function(err, containerId) {
+          job.imageId = imageId;
+          job.containerId = containerId;
+          job.state = 'RUNNING';
+          jobs.put(jobId, job, function(err) {
+            if (err) debug('Failed to update job state %s', jobId);
+          });
         });
       });
     });
