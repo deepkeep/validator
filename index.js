@@ -7,6 +7,7 @@ var express = require('express');
 var uuid = require('uuid');
 var request = require('request');
 var fetcher = require('./lib/fetcher');
+var resolver = require('./lib/resolver');
 
 var app = express();
 
@@ -35,27 +36,15 @@ app.use(function requestLogger(req, res, next) {
   next();
 });
 
-app.post('/api/v0/dummyverify', function(req, res, next) {
-  res.json({ state: 'RUNNING' });
-  setTimeout(function() {
-    request({
-      uri: req.query.callback,
-      method: 'POST',
-      json: {
-        score: Math.random()
-      }
-    }, function(err, res) {
-      console.log('Dummy callback post done', err, res.statusCode);
-    });
-  }, 2*1000);
-});
-
-// verify needs a verifier, and a project.
+// verify needs a validator, and a project.
 app.post('/api/v0/verify', function(req, res, next) {
-  var verifier = req.query.verifier;
+  var validator = req.query.validator;
   var project = req.query.project;
 
-  if (!verifier || !project) return res.sendStatus(400);
+  if (!validator || !project) return res.sendStatus(400);
+
+  validator = resolver.validator(validator);
+  project = resolver.project(project);
 
   var jobId = uuid.v1();
   var job = {
@@ -63,7 +52,7 @@ app.post('/api/v0/verify', function(req, res, next) {
     url: '/api/v0/job/' + jobId,
     state: 'SUBMITTED',
     submitted: Date.now(),
-    verifier: verifier,
+    validator: validator,
     project: project,
     callback: req.query.callback
   };
@@ -83,7 +72,7 @@ app.post('/api/v0/verify', function(req, res, next) {
         return;
       }
 
-      docker.buildImage(verifier, jobId, function(err, imageId) {
+      docker.buildImage(validator, jobId, function(err, imageId) {
         var containerOpts = {
           Image: imageId,
           NetworkDisabled: true,
