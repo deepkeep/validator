@@ -107,7 +107,7 @@ app.get('/api/v0/job/:id', function(req, res, next) {
   jobs.get(id, function(err, job) {
     if (err) {
       if (err.notFound) {
-        return res.sendStatis(404);
+        return res.sendStatus(404);
       }
       debug('Failed to fetch job %s', id);
       return res.sendStatus(500);
