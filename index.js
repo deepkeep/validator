@@ -64,7 +64,8 @@ app.post('/api/v0/verify', function(req, res, next) {
     state: 'SUBMITTED',
     submitted: Date.now(),
     verifier: verifier,
-    project: project
+    project: project,
+    callback: req.query.callback
   };
 
   jobs.put(jobId, job, function(err) {
@@ -134,6 +135,24 @@ dockerEmitter.on('die', function(message) {
         job.state = 'FINISHED';
         jobs.put(jobId, job, function(err) {
           if (err) debug('Failed to update job state %s', jobId);
+
+          // callback
+          if (job.callback) {
+            var match = job.result.match(/SCORE: (\d+(?:\.\d+)?)/);
+            if (match) {
+              var score = parseFloat(match[1]);
+              debug('Score match', score);
+              request({
+                uri: job.callback,
+                method: 'POST',
+                json: {
+                  score: score
+                }
+              }, function(err, res) {
+                debug('Callback POST done %s %s %s', job.callback, score, err);
+              });
+            }
+          }
         });
       });
     });
