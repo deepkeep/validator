@@ -7,7 +7,6 @@ var express = require('express');
 var uuid = require('uuid');
 var request = require('request');
 var fetcher = require('./lib/fetcher');
-var resolver = require('./lib/resolver');
 
 var app = express();
 
@@ -43,8 +42,8 @@ app.post('/api/v0/verify', function(req, res, next) {
 
   if (!validator || !project) return res.sendStatus(400);
 
-  validator = resolver.validator(validator);
-  project = resolver.project(project);
+  validator = 'docker.deepkeep.co/' + validator;
+  project = 'http://www.deepkeep.co/' + project + '/package.zip';
 
   var jobId = uuid.v1();
   var job = {
@@ -72,7 +71,7 @@ app.post('/api/v0/verify', function(req, res, next) {
         return;
       }
 
-      docker.buildImage(validator, jobId, function(err, imageId) {
+      docker.buildImage(validator, function(err, imageId) {
         var containerOpts = {
           Image: imageId,
           NetworkDisabled: true,
