@@ -35,6 +35,21 @@ app.use(function requestLogger(req, res, next) {
   next();
 });
 
+app.post('/api/v0/dummyverify', function(req, res, next) {
+  res.json({ state: 'RUNNING' });
+  setTimeout(function() {
+    request({
+      uri: req.query.callback,
+      method: 'POST',
+      json: {
+        score: Math.random()
+      }
+    }, function(err, res) {
+      console.log('Dummy callback post done', err, res.statusCode);
+    });
+  }, 2*1000);
+});
+
 // verify needs a validator, and a project.
 app.post('/api/v0/verify', function(req, res, next) {
   var validator = req.query.validator;
