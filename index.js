@@ -50,8 +50,7 @@ app.post('/api/v0/dummyverify', function(req, res, next) {
   }, 2*1000);
 });
 
-// verify needs a validator, and a project.
-app.post('/api/v0/verify', function(req, res, next) {
+app.post('/api/v0/validate', function(req, res, next) {
   var validator = req.query.validator;
   var project = req.query.project;
 
