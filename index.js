@@ -30,6 +30,11 @@ var jobs = level(nconf.get('jobdb'), {
   valueEncoding: 'json'
 });
 
+function urlResolve() {
+  var parts = Array.prototype.slice.call(arguments);
+  return parts.join('/').replace(/\/+/g,'/').replace(/\:\//g, '://');
+}
+
 app.use(function requestLogger(req, res, next) {
   console.log(req.method + ' ' + req.url);
   next();
@@ -56,8 +61,10 @@ app.post('/api/v0/validate', function(req, res, next) {
 
   if (!validator || !project) return res.sendStatus(400);
 
-  validator = 'docker.deepkeep.co/' + validator;
-  project = 'http://www.deepkeep.co/' + project + '/package.zip';
+  validator = urlResolve(nconf.get('resolver:validator'), validator);
+  project = urlResolve(nconf.get('resolver:project'), project, 'package.zip');
+
+  debug('Validating %s with %s', project, validator);
 
   var jobId = uuid.v1();
   var job = {

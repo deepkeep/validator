@@ -7,5 +7,9 @@
     "ca": "~/.boot2docker/certs/boot2docker-vm/ca.pem",
     "key": "~/.boot2docker/certs/boot2docker-vm/key.pem",
     "cert": "~/.boot2docker/certs/boot2docker-vm/cert.pem"
+  },
+  "resolver": {
+    "project": "http://www.deepkeep.co",
+    "validator": "docker.deepkeep.co"
   }
 }
