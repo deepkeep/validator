@@ -1,0 +1,22 @@
+validator:
+  build: .
+  ports:
+    - "8080:8080"
+  volumes:
+    - "$HOME/.boot2docker/certs/boot2docker-vm:/boot2docker:ro"
+  volumes_from:
+    - validatortmp
+  environment:
+    DEBUG: index,docker,package,fetcher
+    port: 8080
+    "docker:cert": /boot2docker/cert.pem
+    "docker:key": /boot2docker/key.pem
+    "docker:ca": /boot2docker/ca.pem
+
+# Creates a data volume container for downloading temporary packages
+# the volume can then be linked to other validation containers
+validatortmp:
+  image: busybox
+  command: /bin/true
+  volumes:
+    - /tmp
