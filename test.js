@@ -12,5 +12,5 @@ var docker = new Dockerode({
 });
 
 
-var v = new Validation(docker, '/Users/falcon/Code/mahler/tmp/package.zip');
+var v = new Validation(docker, 'http://www.deepkeep.co/falcon/xor/package.zip');
 v.run('docker.deepkeep.co/falcon/tape-test:latest');

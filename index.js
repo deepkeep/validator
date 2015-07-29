@@ -7,6 +7,7 @@ var express = require('express');
 var uuid = require('uuid');
 var request = require('request');
 var fetcher = require('./lib/fetcher');
+var Validation = require('./lib/valiadtion');
 
 var app = express();
 
@@ -49,18 +50,10 @@ app.post('/api/v0/validate', function(req, res, next) {
 
   debug('Validating %s with %s', project, validator);
 
-  var jobId = uuid.v1();
-  var job = {
-    id: jobId,
-    url: '/api/v0/job/' + jobId,
-    state: 'SUBMITTED',
-    submitted: Date.now(),
-    validator: validator,
-    project: project,
-    callback: req.query.callback
-  };
+  var validation = new Validation(docker);
 
-  jobs.put(jobId, job, function(err) {
+
+  jobs.put(validation.job.id, validation.job, function(err) {
     if (err) return res.statusCode(500);
     // response asap.
     res.status(202).json(job);
@@ -74,6 +67,11 @@ app.post('/api/v0/validate', function(req, res, next) {
         });
         return;
       }
+
+      var validation = new Validation(docker, packagePath);
+      validation.on('update', saveToLevelDb);
+      validation.once('exit', finalizeJob);
+      validation.run(validator);
 
       docker.buildImage(validator, function(err, imageId) {
         var containerOpts = {
