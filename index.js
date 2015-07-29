@@ -1,6 +1,6 @@
 var debug = require('debug')('index');
 var fs = require('fs');
-var nconf = require('nconf');
+var conf = require('./lib/conf');
 var Docker = require('./lib/docker');
 var level = require('level');
 var express = require('express');
@@ -10,22 +10,20 @@ var fetcher = require('./lib/fetcher');
 
 var app = express();
 
-nconf.env().file('local.json');
-
 var docker;
-if (nconf.get('docker:socketPath')) {
-  docker = new Docker({ socketPath: nconf.get('docker:socketPath') });
+if (conf.get('docker:socketPath')) {
+  docker = new Docker({ socketPath: conf.get('docker:socketPath') });
 } else {
   docker = new Docker({
-    host: nconf.get('docker:host'),
-    port: nconf.get('docker:port'),
-    key: fs.readFileSync(nconf.get('docker:key')),
-    cert: fs.readFileSync(nconf.get('docker:cert')),
-    ca: fs.readFileSync(nconf.get('docker:ca'))
+    host: conf.get('docker:host'),
+    port: conf.get('docker:port'),
+    key: fs.readFileSync(conf.get('docker:key')),
+    cert: fs.readFileSync(conf.get('docker:cert')),
+    ca: fs.readFileSync(conf.get('docker:ca'))
   });
 }
 
-var jobs = level(nconf.get('jobdb'), {
+var jobs = level(conf.get('jobdb'), {
   createIfMissing: true,
   valueEncoding: 'json'
 });
@@ -46,8 +44,8 @@ app.post('/api/v0/validate', function(req, res, next) {
 
   if (!validator || !project) return res.sendStatus(400);
 
-  validator = urlResolve(nconf.get('resolver:validator'), validator);
-  project = urlResolve(nconf.get('resolver:project'), project, 'package.zip');
+  validator = urlResolve(conf.get('resolver:validator'), validator);
+  project = urlResolve(conf.get('resolver:project'), project, 'package.zip');
 
   debug('Validating %s with %s', project, validator);
 
@@ -153,7 +151,7 @@ dockerEmitter.on('die', function(message) {
   });
 });
 
-var port = nconf.get('port');
+var port = conf.get('port');
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
