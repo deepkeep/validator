@@ -12,5 +12,5 @@ var docker = new Dockerode({
 });
 
 
-var v = new Validation(docker, 'falcon/xor/1.6');
+var v = new Validation(docker, 'falcon/xor/1.7');
 v.run();
