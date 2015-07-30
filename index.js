@@ -1,21 +1,19 @@
 var debug = require('debug')('index');
 var fs = require('fs');
 var conf = require('./lib/conf');
-var Docker = require('./lib/docker');
+var Dockerode = require('dockerode-promise');
 var level = require('level');
 var express = require('express');
-var uuid = require('uuid');
 var request = require('request');
-var fetcher = require('./lib/fetcher');
-var Validation = require('./lib/valiadtion');
+var Validation = require('./lib/validation');
 
 var app = express();
 
 var docker;
 if (conf.get('docker:socketPath')) {
-  docker = new Docker({ socketPath: conf.get('docker:socketPath') });
+  docker = new Dockerode({ socketPath: conf.get('docker:socketPath') });
 } else {
-  docker = new Docker({
+  docker = new Dockerode({
     host: conf.get('docker:host'),
     port: conf.get('docker:port'),
     key: fs.readFileSync(conf.get('docker:key')),
@@ -29,67 +27,28 @@ var jobs = level(conf.get('jobdb'), {
   valueEncoding: 'json'
 });
 
-function urlResolve() {
-  var parts = Array.prototype.slice.call(arguments);
-  return parts.join('/').replace(/\/+/g,'/').replace(/\:\//g, '://');
-}
-
 app.use(function requestLogger(req, res, next) {
   console.log(req.method + ' ' + req.url);
   next();
 });
 
 app.post('/api/v0/validate', function(req, res, next) {
-  var validator = req.query.validator;
   var project = req.query.project;
+  if (!project) return res.sendStatus(400);
 
-  if (!validator || !project) return res.sendStatus(400);
-
-  validator = urlResolve(conf.get('resolver:validator'), validator);
-  project = urlResolve(conf.get('resolver:project'), project, 'package.zip');
-
-  debug('Validating %s with %s', project, validator);
-
-  var validation = new Validation(docker);
-
-
+  var validation = new Validation(docker, project);
   jobs.put(validation.job.id, validation.job, function(err) {
     if (err) return res.statusCode(500);
-    // response asap.
-    res.status(202).json(job);
 
-    fetcher.fetch(project, function(err, packagePath) {
-      if (err) {
-        job.state = 'FAILED';
-        job.finished = Date.now();
-        jobs.put(jobId, job, function(err) {
-          if (err) debug('Failed to update job state %s', jobId);
-        });
-        return;
-      }
+    // respond asap.
+    res.status(202).json(validation.job);
 
-      var validation = new Validation(docker, packagePath);
-      validation.on('update', saveToLevelDb);
-      validation.once('exit', finalizeJob);
-      validation.run(validator);
-
-      docker.buildImage(validator, function(err, imageId) {
-        var containerOpts = {
-          Image: imageId,
-          NetworkDisabled: true,
-          Binds: [packagePath + ':/project/package.zip:ro'],
-          name: jobId
-        }
-        docker.runImage(containerOpts, function(err, containerId) {
-          job.imageId = imageId;
-          job.containerId = containerId;
-          job.state = 'RUNNING';
-          jobs.put(jobId, job, function(err) {
-            if (err) debug('Failed to update job state %s', jobId);
-          });
-        });
-      });
+    validation.on('update', function() {
+      jobs.put(validation.job.id, validation.job, function(err) {
+        if (err) debug('Failed to update leveldb');
+      })
     });
+    validation.run();
   });
 });
 
@@ -107,47 +66,24 @@ app.get('/api/v0/job/:id', function(req, res, next) {
   });
 });
 
-var dockerEmitter = docker.emitter();
-dockerEmitter.start();
 
-// die is emitted when building an image, so we only clean up containers used
-// for running a job.
-dockerEmitter.on('die', function(message) {
-  var containerId = message.id;
-  docker.getContainerName(containerId, function(err, jobId) {
-    jobs.get(jobId, function(err, job) {
-      if (!job) return;
-      debug('Container finished executing %s for %s', containerId, jobId);
-      docker.readContainerLogs(containerId, function(err, log) {
-        docker.removeContainer(containerId);
-        job.result = log;
-        job.finished = Date.now();
-        job.state = 'FINISHED';
-        jobs.put(jobId, job, function(err) {
-          if (err) debug('Failed to update job state %s', jobId);
-
-          // callback
-          if (job.callback) {
-            var match = job.result.match(/SCORE: (\d+(?:\.\d+)?)/);
-            if (match) {
-              var score = parseFloat(match[1]);
-              debug('Score match', score);
-              request({
-                uri: job.callback,
-                method: 'POST',
-                json: {
-                  score: score
-                }
-              }, function(err, res) {
-                debug('Callback POST done %s %s %s', job.callback, score, err);
-              });
-            }
-          }
-        });
-      });
-    });
-  });
-});
+// // callback
+// if (job.callback) {
+//   var match = job.result.match(/SCORE: (\d+(?:\.\d+)?)/);
+//   if (match) {
+//     var score = parseFloat(match[1]);
+//     debug('Score match', score);
+//     request({
+//       uri: job.callback,
+//       method: 'POST',
+//       json: {
+//         score: score
+//       }
+//     }, function(err, res) {
+//       debug('Callback POST done %s %s %s', job.callback, score, err);
+//     });
+//   }
+// }
 
 var port = conf.get('port');
 app.listen(port, function() {
