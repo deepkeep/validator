@@ -13,4 +13,13 @@ var docker = new Dockerode({
 
 
 var v = new Validation(docker, 'falcon/xor/1.7');
+v.on('update', function() {
+  console.log(v.job);
+})
+v.on('end', function() {
+  console.log('end');
+})
+v.on('error', function() {
+  console.log('error');
+});
 v.run();
