@@ -37,16 +37,37 @@ app.post('/api/v0/validate', function(req, res, next) {
   if (!project) return res.sendStatus(400);
 
   var validation = new Validation(docker, project);
-  jobs.put(validation.job.id, validation.job, function(err) {
+  var job = validation.job;
+
+  jobs.put(job.id, job, function(err) {
     if (err) return res.statusCode(500);
 
     // respond asap.
-    res.status(202).json(validation.job);
+    res.status(202).json(job);
 
     validation.on('update', function() {
-      jobs.put(validation.job.id, validation.job, function(err) {
+      jobs.put(job.id, job, function(err) {
         if (err) debug('Failed to update leveldb');
       })
+    });
+    validation.once('end', function() {
+      var callback = req.query.callback;
+      if (callback) {
+        var scores = Object.keys(job.validators).map(function(k) {
+          return { name: k, score: job.validators[k].score }
+        });
+
+        debug('Sending scores %o to %s', scores, callback)
+        request({
+          uri: callback,
+          method: 'POST',
+          json: {
+            scores: scores
+          }
+        }, function(err, res) {
+          debug('Callback done %s %s', callback, err);
+        });
+      }
     });
     validation.run();
   });
@@ -65,25 +86,6 @@ app.get('/api/v0/job/:id', function(req, res, next) {
     res.json(job);
   });
 });
-
-
-// // callback
-// if (job.callback) {
-//   var match = job.result.match(/SCORE: (\d+(?:\.\d+)?)/);
-//   if (match) {
-//     var score = parseFloat(match[1]);
-//     debug('Score match', score);
-//     request({
-//       uri: job.callback,
-//       method: 'POST',
-//       json: {
-//         score: score
-//       }
-//     }, function(err, res) {
-//       debug('Callback POST done %s %s %s', job.callback, score, err);
-//     });
-//   }
-// }
 
 var port = conf.get('port');
 app.listen(port, function() {
