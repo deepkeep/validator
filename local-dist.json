@@ -10,7 +10,7 @@
     "cert": "~/.boot2docker/certs/boot2docker-vm/cert.pem"
   },
   "resolver": {
-    "project": "http://www.deepkeep.co",
+    "project": "http://packages.deepkeep.co/v1",
     "validator": "docker.deepkeep.co"
   }
 }
