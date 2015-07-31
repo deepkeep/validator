@@ -1,4 +1,4 @@
 .git
-node_modules/
-jobdb/
-tmp/
+node_modules
+jobdb
+tmp

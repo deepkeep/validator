@@ -1,0 +1,14 @@
+validator:
+  build: .
+  ports:
+    - "8080:8080"
+  volumes:
+    - "$HOME/.boot2docker/certs/boot2docker-vm:/boot2docker:ro"
+    - "$HOME/tmp:$HOME/tmp"
+  environment:
+    DEBUG: index,validation,fetcher
+    port: 8080
+    tmp: $HOME/tmp
+    "docker:cert": /boot2docker/cert.pem
+    "docker:key": /boot2docker/key.pem
+    "docker:ca": /boot2docker/ca.pem
