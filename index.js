@@ -54,7 +54,8 @@ app.post('/api/v0/validate', function(req, res, next) {
       var callback = req.query.callback;
       if (callback) {
         var scores = Object.keys(job.validators).map(function(k) {
-          return { name: k, score: job.validators[k].score }
+          var v = job.validators[k];
+          return { name: v.name, score: v.score }
         });
 
         debug('Sending scores %o to %s', scores, callback)
